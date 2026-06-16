@@ -1,0 +1,774 @@
+.MODEL SMALL
+.STACK 300H
+
+.DATA
+    ; --- BORDERS ---
+    B_TOP DB '+=========================================+$'
+    B_MID DB '|                                         |$'
+    B_BOT DB '+=========================================+$'
+    B_DIV DB '  -----------------------------------------$'
+
+    ; --- MENU STRINGS ---
+    T1   DB '|     HEALTH & BMI MANAGEMENT SYSTEM      |$'
+    T2   DB '|              Misbah  Ikram               |$'
+    M1   DB '  [1]  Start Health Assessment             $'
+    M2   DB '  [2]  About BMI                           $'
+    M3   DB '  [3]  Exit                                $'
+    MCHO DB '  Enter Choice (1-3) : $'
+
+    ; --- INPUT LABELS ---
+    IHDR DB '|          PATIENT INFORMATION             |$'
+    INAM DB '  Enter Your Name        : $'
+    IAGE DB '  Enter Your Age         : $'
+    IGEN DB '  Enter Gender (M/F)     : $'
+    IHFT DB '  Enter Height - Feet    : $'
+    IHIN DB '  Enter Height - Inches  : $'
+    IWGT DB '  Enter Weight (kg)      : $'
+
+    ; --- REPORT LABELS ---
+    RHDR DB '|              HEALTH  REPORT              |$'
+    RNAM DB '  Name    : $'
+    RAGE DB '  Age     : $'
+    RGEN DB '  Gender  : $'
+    RHGT DB '  Height  : $'
+    RWGT DB '  Weight  : $'
+    RBMI DB '  BMI     : $'
+    RSTS DB '  Status  : $'
+    RFT  DB ' Feet $'
+    RIN  DB ' Inches$'
+    RKG  DB ' kg$'
+    RYRS DB ' years$'
+
+    ; --- STATUS ---
+    SOVR DB 'OVERWEIGHT$'
+    SNRM DB 'NORMAL WEIGHT$'
+    SUND DB 'UNDERWEIGHT$'
+    SMLE DB 'Male$'
+    SFEM DB 'Female$'
+
+    ; --- RECOMMENDATIONS ---
+    RECH DB '  RECOMMENDATIONS:$'
+    U1   DB '  - Increase daily calorie intake.$'
+    U2   DB '  - Eat eggs, milk, nuts and rice.$'
+    U3   DB '  - Drink 3 litres of water daily.$'
+    U4   DB '  - Sleep at least 8 hours nightly.$'
+    U5   DB '  - Do light strength training.$'
+    U6   DB '  - Consult a nutritionist.$'
+    N1   DB '  - Maintain your balanced diet.$'
+    N2   DB '  - Exercise 30 minutes daily.$'
+    N3   DB '  - Drink 2-3 litres of water daily.$'
+    N4   DB '  - Keep up with regular health checkups.$'
+    NCN  DB '  Congratulations! Keep it up!$'
+    O1   DB '  - Follow a low-calorie diet.$'
+    O2   DB '  - Eat vegetables, avoid junk food.$'
+    O3   DB '  - Walk or run at least 30 min/day.$'
+    O4   DB '  - Avoid sugary drinks and snacks.$'
+    O5   DB '  - Consult a doctor or dietitian.$'
+
+    ; --- ABOUT BMI ---
+    AHDR DB '|               ABOUT  BMI                |$'
+    AB1  DB '  BMI = Body Mass Index$'
+    AB2  DB '  Formula : Weight(kg) / Height(m)^2$'
+    AB3  DB '  Underweight  : BMI below 18$'
+    AB4  DB '  Normal       : BMI 18 to 24$'
+    AB5  DB '  Overweight   : BMI 25 and above$'
+    AB6  DB '  BMI is a general health screening tool.$'
+    AB7  DB '  Always consult a doctor for advice.$'
+    APRS DB '  Press any key to return to menu...$'
+
+    ; --- FOOTER ---
+    F1   DB '  [1]  New Assessment$'
+    F2   DB '  [2]  Main Menu$'
+    F3   DB '  [3]  Exit$'
+    FCHO DB '  Enter Choice (1-3) : $'
+
+    ; --- MISC ---
+    MBYE DB '|     Thank You! Stay Healthy! -Misbah    |$'
+    MERR DB '  [!] Invalid input. Please try again.$'
+
+    ; --- DATA VARIABLES ---
+    NBUF DB 20 DUP('$')   ; Name buffer
+    NLEN DB 0              ; Name length
+    AGEV DW 0              ; Age value
+    GENB DB 0              ; Gender byte (M or F)
+    FVAL DW 0              ; Feet value
+    IVAL DW 0              ; Inches value
+    HCMV DW 0              ; Height in cm
+    WGTV DW 0              ; Weight in kg
+    BMIV DW 0              ; BMI value (integer)
+
+.CODE
+
+MAIN PROC
+    ; ===== FIX 1: Only set DS, do NOT touch SS =====
+    ; .STACK 300H already sets up SS:SP correctly
+    MOV  AX, @DATA
+    MOV  DS, AX
+    ; SS is handled by assembler — do NOT set SS=DS
+
+    CALL CLS
+
+; ===== MAIN MENU =====
+MENU:
+    CALL CLS
+    CALL NL
+    LEA  DX, B_TOP
+    CALL PR
+    CALL NL
+    LEA  DX, T1
+    CALL PR
+    CALL NL
+    LEA  DX, T2
+    CALL PR
+    CALL NL
+    LEA  DX, B_BOT
+    CALL PR
+    CALL NL
+    LEA  DX, B_MID
+    CALL PR
+    CALL NL
+    LEA  DX, M1
+    CALL PR
+    CALL NL
+    LEA  DX, M2
+    CALL PR
+    CALL NL
+    LEA  DX, M3
+    CALL PR
+    CALL NL
+    LEA  DX, B_MID
+    CALL PR
+    CALL NL
+    LEA  DX, B_BOT
+    CALL PR
+    CALL NL
+    CALL NL
+    LEA  DX, MCHO
+    CALL PR
+    CALL FKB
+    MOV  AH, 1
+    INT  21H
+    CMP  AL, '1'
+    JE   ASSESS
+    CMP  AL, '2'
+    JE   ABOUT
+    CMP  AL, '3'
+    JE   QUIT
+    CALL NL
+    LEA  DX, MERR
+    CALL PR
+    JMP  MENU
+
+; ===== ABOUT BMI =====
+ABOUT:
+    CALL CLS
+    CALL NL
+    LEA  DX, B_TOP
+    CALL PR
+    CALL NL
+    LEA  DX, AHDR
+    CALL PR
+    CALL NL
+    LEA  DX, B_BOT
+    CALL PR
+    CALL NL
+    LEA  DX, AB1
+    CALL PR
+    CALL NL
+    LEA  DX, AB2
+    CALL PR
+    CALL NL
+    LEA  DX, B_DIV
+    CALL PR
+    CALL NL
+    LEA  DX, AB3
+    CALL PR
+    CALL NL
+    LEA  DX, AB4
+    CALL PR
+    CALL NL
+    LEA  DX, AB5
+    CALL PR
+    CALL NL
+    LEA  DX, B_DIV
+    CALL PR
+    CALL NL
+    LEA  DX, AB6
+    CALL PR
+    CALL NL
+    LEA  DX, AB7
+    CALL PR
+    CALL NL
+    CALL NL
+    LEA  DX, APRS
+    CALL PR
+    CALL NL
+    LEA  DX, B_BOT
+    CALL PR
+    CALL FKB
+    MOV  AH, 1
+    INT  21H
+    JMP  MENU
+
+; ===== HEALTH ASSESSMENT =====
+ASSESS:
+    CALL CLS
+    CALL NL
+    LEA  DX, B_TOP
+    CALL PR
+    CALL NL
+    LEA  DX, IHDR
+    CALL PR
+    CALL NL
+    LEA  DX, B_BOT
+    CALL PR
+    CALL NL
+
+    ; --- Name ---
+    LEA  DX, INAM
+    CALL PR
+    CALL FKB
+    CALL RNAME
+
+    ; --- Age ---
+    CALL NL
+    LEA  DX, IAGE
+    CALL PR
+    CALL FKB
+    CALL RNUM
+    MOV  AGEV, BX
+
+    ; --- Gender ---
+    CALL NL
+    LEA  DX, IGEN
+    CALL PR
+    CALL FKB
+AGEN:
+    MOV  AH, 1
+    INT  21H
+    AND  AL, 0DFH        ; convert to uppercase
+    CMP  AL, 'M'
+    JE   ISMAL
+    CMP  AL, 'F'
+    JE   ISFEM
+    JMP  AGEN
+ISMAL:
+    MOV  GENB, 'M'
+    JMP  HGHT
+ISFEM:
+    MOV  GENB, 'F'
+
+HGHT:
+    ; --- Feet ---
+    CALL NL
+    LEA  DX, IHFT
+    CALL PR
+    CALL FKB
+    CALL RNUM
+    MOV  FVAL, BX
+
+    ; --- Inches ---
+    CALL NL
+    LEA  DX, IHIN
+    CALL PR
+    CALL FKB
+    CALL RNUM
+    MOV  IVAL, BX
+
+    ; ===== FIX 2: Correct height calculation =====
+    ; Total inches = feet * 12 + inches
+    ; Height in cm = total_inches * 127 / 50
+    ; (because 1 inch = 2.54 cm = 254/100, so *127/50 is exact integer approx)
+
+    MOV  AX, FVAL
+    MOV  BX, 12
+    ; ===== FIX 3: Use MUL BX safely (result in DX:AX) =====
+    MUL  BX               ; AX = feet * 12  (DX should be 0 for normal feet values)
+    ADD  AX, IVAL         ; AX = total inches
+    MOV  BX, 127
+    MUL  BX               ; DX:AX = total_inches * 127
+    MOV  BX, 50
+    DIV  BX               ; AX = height in cm  (DX = remainder, ignore)
+    MOV  HCMV, AX
+
+    ; --- Weight ---
+    CALL NL
+    LEA  DX, IWGT
+    CALL PR
+    CALL FKB
+    CALL RNUM
+    MOV  WGTV, BX
+
+; ===== BMI CALCULATION =====
+; ===== FIX 4: Correct BMI formula =====
+; BMI = Weight(kg) * 10000 / Height(cm)^2
+; We use 10000 because BMI = kg/m^2 and 1m = 100cm
+; So kg/m^2 = kg*10000 / cm^2
+
+CBMI:
+    MOV  BMIV, 0
+
+    ; Step 1: height_cm * height_cm
+    MOV  AX, HCMV
+    MUL  HCMV             ; DX:AX = height_cm^2
+    ; For normal heights (100-250 cm), cm^2 fits in AX (max ~62500 < 65535)
+    ; DX will be 0, safe to use AX as divisor
+    MOV  BX, AX           ; BX = height_cm^2 (divisor)
+
+    ; Step 2: weight * 10000
+    MOV  AX, WGTV
+    MOV  CX, 10000
+    MUL  CX               ; DX:AX = weight * 10000
+
+    ; Step 3: Check for overflow before DIV
+    ; If DX >= BX, result won't fit in AX (overflow)
+    CMP  DX, BX
+    JAE  BMIOF            ; overflow → cap at 30
+
+    ; Step 4: Divide DX:AX by BX
+    DIV  BX               ; AX = BMI integer value
+    MOV  BMIV, AX
+    JMP  REPORT
+
+BMIOF:
+    MOV  BMIV, 30         ; cap at 30 on overflow
+
+; ===== HEALTH REPORT =====
+REPORT:
+    CALL CLS
+    CALL NL
+    LEA  DX, B_TOP
+    CALL PR
+    CALL NL
+    LEA  DX, RHDR
+    CALL PR
+    CALL NL
+    LEA  DX, B_BOT
+    CALL PR
+    CALL NL
+
+    ; Name
+    LEA  DX, RNAM
+    CALL PR
+    CALL PNAME
+    CALL NL
+
+    ; Age
+    LEA  DX, RAGE
+    CALL PR
+    MOV  AX, AGEV
+    CALL PNUM
+    LEA  DX, RYRS
+    CALL PR
+    CALL NL
+
+    ; Gender
+    LEA  DX, RGEN
+    CALL PR
+    CMP  GENB, 'M'
+    JE   PMLE
+    LEA  DX, SFEM
+    CALL PR
+    JMP  PHGT
+PMLE:
+    LEA  DX, SMLE
+    CALL PR
+
+PHGT:
+    ; Height
+    CALL NL
+    LEA  DX, RHGT
+    CALL PR
+    MOV  AX, FVAL
+    CALL PNUM
+    LEA  DX, RFT
+    CALL PR
+    MOV  AX, IVAL
+    CALL PNUM
+    LEA  DX, RIN
+    CALL PR
+    CALL NL
+
+    ; Weight
+    LEA  DX, RWGT
+    CALL PR
+    MOV  AX, WGTV
+    CALL PNUM
+    LEA  DX, RKG
+    CALL PR
+    CALL NL
+
+    LEA  DX, B_DIV
+    CALL PR
+    CALL NL
+
+    ; BMI
+    LEA  DX, RBMI
+    CALL PR
+    MOV  AX, BMIV
+    CALL PNUM
+    CALL NL
+
+    ; Status
+    LEA  DX, RSTS
+    CALL PR
+    MOV  AX, BMIV
+    CMP  AX, 18
+    JL   PUND
+    CMP  AX, 25
+    JGE  POVR
+    LEA  DX, SNRM
+    CALL PR
+    JMP  RECS
+POVR:
+    LEA  DX, SOVR
+    CALL PR
+    JMP  RECS
+PUND:
+    LEA  DX, SUND
+    CALL PR
+
+; ===== RECOMMENDATIONS =====
+RECS:
+    CALL NL
+    LEA  DX, B_DIV
+    CALL PR
+    CALL NL
+    LEA  DX, RECH
+    CALL PR
+    CALL NL
+
+    MOV  AX, BMIV
+    CMP  AX, 18
+    JL   RUND
+    CMP  AX, 25
+    JGE  ROVR
+
+    ; Normal weight recommendations
+    LEA  DX, N1
+    CALL PR
+    CALL NL
+    LEA  DX, N2
+    CALL PR
+    CALL NL
+    LEA  DX, N3
+    CALL PR
+    CALL NL
+    LEA  DX, N4
+    CALL PR
+    CALL NL
+    LEA  DX, NCN
+    CALL PR
+    JMP  FOOTER
+
+RUND:
+    ; Underweight recommendations
+    LEA  DX, U1
+    CALL PR
+    CALL NL
+    LEA  DX, U2
+    CALL PR
+    CALL NL
+    LEA  DX, U3
+    CALL PR
+    CALL NL
+    LEA  DX, U4
+    CALL PR
+    CALL NL
+    LEA  DX, U5
+    CALL PR
+    CALL NL
+    LEA  DX, U6
+    CALL PR
+    JMP  FOOTER
+
+ROVR:
+    ; Overweight recommendations
+    LEA  DX, O1
+    CALL PR
+    CALL NL
+    LEA  DX, O2
+    CALL PR
+    CALL NL
+    LEA  DX, O3
+    CALL PR
+    CALL NL
+    LEA  DX, O4
+    CALL PR
+    CALL NL
+    LEA  DX, O5
+    CALL PR
+
+; ===== FOOTER MENU =====
+FOOTER:
+    CALL NL
+    LEA  DX, B_BOT
+    CALL PR
+    CALL NL
+    LEA  DX, F1
+    CALL PR
+    CALL NL
+    LEA  DX, F2
+    CALL PR
+    CALL NL
+    LEA  DX, F3
+    CALL PR
+    CALL NL
+    CALL NL
+    LEA  DX, FCHO
+    CALL PR
+    CALL FKB
+    MOV  AH, 1
+    INT  21H
+    CMP  AL, '1'
+    JE   RESET
+    CMP  AL, '2'
+    JE   MENU
+    CMP  AL, '3'
+    JE   QUIT
+    CALL NL
+    LEA  DX, MERR
+    CALL PR
+    JMP  FOOTER
+
+; ===== RESET DATA =====
+RESET:
+    MOV  BMIV, 0
+    MOV  AGEV, 0
+    MOV  FVAL, 0
+    MOV  IVAL, 0
+    MOV  HCMV, 0
+    MOV  WGTV, 0
+    MOV  GENB, 0
+    MOV  NLEN, 0
+    LEA  SI, NBUF
+    MOV  CX, 20
+CLRBUF:
+    MOV  BYTE PTR [SI], '$'
+    INC  SI
+    LOOP CLRBUF
+    JMP  ASSESS
+
+; ===== EXIT =====
+QUIT:
+    CALL CLS
+    CALL NL
+    LEA  DX, B_TOP
+    CALL PR
+    CALL NL
+    LEA  DX, B_MID
+    CALL PR
+    CALL NL
+    LEA  DX, MBYE
+    CALL PR
+    CALL NL
+    LEA  DX, B_MID
+    CALL PR
+    CALL NL
+    LEA  DX, B_BOT
+    CALL PR
+    CALL NL
+    MOV  AH, 4CH
+    INT  21H
+
+MAIN ENDP
+
+; ===========================
+; PROCEDURES
+; ===========================
+
+; --------------------------
+; Clear Screen
+; --------------------------
+CLS PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    MOV  AH, 06H
+    MOV  AL, 00H
+    MOV  BH, 07H
+    XOR  CX, CX
+    MOV  DX, 184FH
+    INT  10H
+    MOV  AH, 02H
+    XOR  BX, BX
+    XOR  DX, DX
+    INT  10H
+    POP  DX
+    POP  CX
+    POP  BX
+    POP  AX
+    RET
+CLS ENDP
+
+; --------------------------
+; Flush Keyboard Buffer
+; --------------------------
+FKB PROC
+    PUSH AX
+FKL:
+    MOV  AH, 0BH
+    INT  21H
+    CMP  AL, 0FFH
+    JNE  FKD
+    MOV  AH, 08H
+    INT  21H
+    JMP  FKL
+FKD:
+    POP  AX
+    RET
+FKB ENDP
+
+; --------------------------
+; Print String (DX = address)
+; --------------------------
+PR PROC
+    PUSH AX
+    MOV  AH, 09H
+    INT  21H
+    POP  AX
+    RET
+PR ENDP
+
+; --------------------------
+; New Line
+; --------------------------
+NL PROC
+    PUSH AX
+    PUSH DX
+    MOV  AH, 02H
+    MOV  DL, 0DH
+    INT  21H
+    MOV  DL, 0AH
+    INT  21H
+    POP  DX
+    POP  AX
+    RET
+NL ENDP
+
+; --------------------------
+; Read Number -> BX
+; ===== FIX 5: Use byte multiply to avoid DX corruption =====
+; --------------------------
+RNUM PROC
+    PUSH AX
+    PUSH CX
+    PUSH DX
+    XOR  BX, BX
+RNL:
+    MOV  AH, 01H
+    INT  21H
+    CMP  AL, 0DH          ; Enter key = done
+    JE   RND
+    CMP  AL, '0'
+    JB   RNL              ; ignore non-digit
+    CMP  AL, '9'
+    JA   RNL              ; ignore non-digit
+    AND  AL, 0FH          ; convert ASCII to digit (0-9)
+    MOV  CL, AL           ; save new digit
+
+    ; BX = BX * 10 + new_digit
+    ; Use AX for multiply to avoid register conflicts
+    MOV  AX, BX
+    MOV  DL, 10
+    MUL  DL               ; AX = BX * 10  (byte mul: AX = AL*DL, safe, no DX touch)
+    XOR  BX, BX
+    MOV  BL, AL           ; BX = result (low byte enough for normal input values)
+    ; Handle if AH has carry (for larger numbers)
+    MOV  BH, AH
+    XOR  AH, AH
+    MOV  AL, CL
+    ADD  BX, AX           ; BX = BX*10 + new_digit
+    JMP  RNL
+RND:
+    POP  DX
+    POP  CX
+    POP  AX
+    RET
+RNUM ENDP
+
+; --------------------------
+; Read Name -> NBUF
+; --------------------------
+RNAME PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH SI
+    XOR  BX, BX
+    MOV  CX, 19           ; max 19 chars
+RNM:
+    MOV  AH, 01H
+    INT  21H
+    CMP  AL, 0DH          ; Enter = done
+    JE   RNMD
+    CMP  BX, CX           ; buffer full?
+    JAE  RNM
+    LEA  SI, NBUF
+    MOV  [SI+BX], AL
+    INC  BX
+    JMP  RNM
+RNMD:
+    LEA  SI, NBUF
+    MOV  BYTE PTR [SI+BX], '$'
+    MOV  NLEN, BL
+    POP  SI
+    POP  CX
+    POP  BX
+    POP  AX
+    RET
+RNAME ENDP
+
+; --------------------------
+; Print Name from NBUF
+; --------------------------
+PNAME PROC
+    PUSH AX
+    PUSH DX
+    LEA  DX, NBUF
+    MOV  AH, 09H
+    INT  21H
+    POP  DX
+    POP  AX
+    RET
+PNAME ENDP
+
+; --------------------------
+; Print Number in AX
+; --------------------------
+PNUM PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    MOV  BX, 10
+    XOR  CX, CX
+    CMP  AX, 0
+    JNE  PND
+    ; Special case: AX = 0, push '0'
+    PUSH AX
+    INC  CX
+    JMP  PNP
+PND:
+    CMP  AX, 0
+    JE   PNP
+    XOR  DX, DX
+    DIV  BX               ; AX = quotient, DX = remainder digit
+    PUSH DX               ; push digit onto stack
+    INC  CX
+    JMP  PND
+PNP:
+    POP  DX
+    ADD  DL, '0'          ; convert digit to ASCII
+    MOV  AH, 02H
+    INT  21H
+    LOOP PNP
+    POP  DX
+    POP  CX
+    POP  BX
+    POP  AX
+    RET
+PNUM ENDP
+
+END MAIN
