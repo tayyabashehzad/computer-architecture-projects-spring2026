@@ -1,0 +1,279 @@
+; ==============================================================================
+; PROJECT: PARKING MANAGEMENT SYSTEM
+; COURSE: COMPUTER ORGANIZATION AND ASSEMBLY LANGUAGE (COAL)
+; ARCHITECTURE: x64 NATIVE (MASM)
+; ENVIRONMENT: WINDOWS CONSOLE SUBSYSTEM
+; ==============================================================================
+
+; --- EXTERNAL WINDOWS C-RUNTIME FUNCTIONS ---
+extern printf  : PROC
+extern _getch  : PROC
+extern exit    : PROC
+
+.data
+    ; --- SYSTEM STORAGE VARIABLES (64-bit Unsigned Integers) ---
+    total_amount    dq 0        ; Tracks absolute total fiscal collections
+    total_count     dq 0        ; Tracks total active parked vehicles
+    rikshaw_count   dq 0        ; Counter for Rikshaws
+    car_count       dq 0        ; Counter for Cars
+    bus_count       dq 0        ; Counter for Buses
+    max_capacity    dq 8        ; System volumetric ceiling boundary
+
+    ; --- MENU LITERALS & PRINT STRINGS ---
+    sys_title       db "==================================================", 10, 13
+                    db "            PARKING MANAGEMENT SYSTEM             ", 10, 13
+                    db "==================================================", 10, 13, 0
+                    
+    menu_msg        db 10, 13, "Select an option from the matrix below:", 10, 13
+                    db "1. Allocate Slot for Rikshaw (Fee: 200)", 10, 13
+                    db "2. Allocate Slot for Car     (Fee: 300)", 10, 13
+                    db "3. Allocate Slot for Bus     (Fee: 400)", 10, 13
+                    db "4. Query System Records (Show Status)", 10, 13
+                    db "5. Flush System Memory  (Delete All)", 10, 13
+                    db "6. Terminate Execution Pipeline", 10, 13, 10, 13
+                    db "Enter Selection Flag: ", 0
+
+    ; --- TELEMETRY STATUS MESSAGES ---
+    success_msg     db 10, 13, ">>> SUCCESS: Vehicle successfully committed to memory allocation slot.", 10, 13, 0
+    overflow_msg    db 10, 13, ">>> ERROR OVERFLOW: Parking Lot Is Full! Allocation Rejected.", 10, 13, 0
+    flush_msg       db 10, 13, ">>> SYSTEM SYSTEM PURGE: Every active record has been flushed to 0.", 10, 13, 0
+    exit_msg        db 10, 13, ">>> Shutting down system architecture pipeline. Exiting execution...", 10, 13, 0
+    invalid_msg     db 10, 13, ">>> INVALID ENTRY: Please input an operational flag between (1-6).", 10, 13, 0
+    pause_msg       db 10, 13, "Press any key to return back to the menu matrix...", 0
+
+    ; --- SYSTEM STATUS RECORD LAYOUT ---
+    record_hdr      db 10, 13, "--------- CURRENT SYSTEM TELEMETRY RECORDS ---------", 10, 13, 0
+    fmt_amount      db "  [-] Aggregated Fiscal Ledger Balance : %lld units", 10, 13, 0
+    fmt_total_v     db "  [-] Absolute Number of Parked Vehicles: %lld / 8", 10, 13, 0
+    fmt_rikshaw     db "  [-] Total Allocated Rikshaw Slots    : %lld", 10, 13, 0
+    fmt_car         db "  [-] Total Allocated Car Slots        : %lld", 10, 13, 0
+    fmt_bus         db "  [-] Total Allocated Bus Slots        : %lld", 10, 13, 0
+    record_ftr      db "----------------------------------------------------", 10, 13, 0
+
+.code
+main PROC
+    ; --- SHADOW SPACE ALLOCATION ---
+    sub rsp, 40                 ; Allocate shadow space (32 bytes + 8 bytes alignment)
+
+MenuLoop:
+    ; Print System Title Page Header
+    mov rcx, offset sys_title
+    call printf
+
+    ; Print Interactive Selection Options Menu Matrix
+    mov rcx, offset menu_msg
+    call printf
+
+    ; Capture single key press input safely using _getch
+    call _getch                 ; AL register now holds ASCII character value of pressed key
+
+    ; Process conditional branch prediction routes based on user's key entry
+    cmp al, '1'
+    je RouteRikshaw
+    cmp al, '2'
+    je RouteCar
+    cmp al, '3'
+    je RouteBus
+    cmp al, '4'
+    je RouteRecords
+    cmp al, '5'
+    je RouteFlush
+    cmp al, '6'
+    je RouteExit
+
+    ; Fallback condition: handle unexpected keystrokes safely
+    mov rcx, offset invalid_msg
+    call printf
+    call PauseScreen
+    jmp MenuLoop
+
+RouteRikshaw:
+    call RikshawProc
+    jmp MenuLoop
+
+RouteCar:
+    call CarProc
+    jmp MenuLoop
+
+RouteBus:
+    call BusProc
+    jmp MenuLoop
+
+RouteRecords:
+    call DisplayRecordsProc
+    jmp MenuLoop
+
+RouteFlush:
+    call ResetMemoryProc
+    jmp MenuLoop
+
+RouteExit:
+    mov rcx, offset exit_msg
+    call printf
+    
+    ; Reclaim stack frame space and terminate process execution pipeline cleanly
+    add rsp, 40
+    mov ecx, 0                  ; Exit code = 0 (Success)
+    call exit
+main ENDP
+
+
+; ==============================================================================
+; FUNCTION PROCEDURES SUB-SYSTEMS
+; ==============================================================================
+
+RikshawProc PROC
+    sub rsp, 40
+    
+    ; Check Volumetric Space Availability Boundary Constraint
+    mov rax, total_count
+    cmp rax, max_capacity
+    jae OverflowAlert           ; Jump if total_count >= max_capacity
+
+    ; Perform Entry Allocation Calculations
+    add total_amount, 200       ; Add entry rate fee (200) to aggregate ledger
+    inc total_count             ; Step up absolute counter (+1)
+    inc rikshaw_count           ; Step up active category counter (+1)
+
+    ; Print success confirmation output string
+    mov rcx, offset success_msg
+    call printf
+    jmp ProcDone
+
+OverflowAlert:
+    mov rcx, offset overflow_msg
+    call printf
+
+ProcDone:
+    call PauseScreen
+    add rsp, 40
+    ret
+RikshawProc ENDP
+
+
+CarProc PROC
+    sub rsp, 40
+    
+    mov rax, total_count
+    cmp rax, max_capacity
+    jae OverflowAlertCar
+
+    add total_amount, 300       ; Add entry rate fee (300) to aggregate ledger
+    inc total_count
+    inc car_count
+    
+    mov rcx, offset success_msg
+    call printf
+    jmp CarProcDone
+
+OverflowAlertCar:
+    mov rcx, offset overflow_msg
+    call printf
+
+CarProcDone:
+    call PauseScreen
+    add rsp, 40
+    ret
+CarProc ENDP
+
+
+BusProc PROC
+    sub rsp, 40
+    
+    mov rax, total_count
+    cmp rax, max_capacity
+    jae OverflowAlertBus
+
+    add total_amount, 400       ; Add entry rate fee (400) to aggregate ledger
+    inc total_count
+    inc bus_count
+    
+    mov rcx, offset success_msg
+    call printf
+    jmp BusProcDone
+
+OverflowAlertBus:
+    mov rcx, offset overflow_msg
+    call printf
+
+BusProcDone:
+    call PauseScreen
+    add rsp, 40
+    ret
+BusProc ENDP
+
+
+DisplayRecordsProc PROC
+    sub rsp, 40
+
+    ; Print Header Separator
+    mov rcx, offset record_hdr
+    call printf
+
+    ; Print Total Accumulated Cash Balance
+    mov rcx, offset fmt_amount
+    mov rdx, total_amount       ; Pass value to second register parameter
+    call printf
+
+    ; Print Consolidated Active Count Check
+    mov rcx, offset fmt_total_v
+    mov rdx, total_count
+    call printf
+
+    ; Print Categorized Vehicle Sub-Counts
+    mov rcx, offset fmt_rikshaw
+    mov rdx, rikshaw_count
+    call printf
+
+    mov rcx, offset fmt_car
+    mov rdx, car_count
+    call printf
+
+    mov rcx, offset fmt_bus
+    mov rdx, bus_count
+    call printf
+
+    ; Print Footer Separator
+    mov rcx, offset record_ftr
+    call printf
+
+    call PauseScreen
+    add rsp, 40
+    ret
+DisplayRecordsProc ENDP
+
+
+ResetMemoryProc PROC
+    sub rsp, 40
+
+    ; Flush all local counting and tracking parameters down to absolute zero
+    mov total_amount, 0
+    mov total_count, 0
+    mov rikshaw_count, 0
+    mov car_count, 0
+    mov bus_count, 0
+
+    mov rcx, offset flush_msg
+    call printf
+
+    call PauseScreen
+    add rsp, 40
+    ret
+ResetMemoryProc ENDP
+
+
+PauseScreen PROC
+    sub rsp, 40
+    
+    ; Display exit tracking line text
+    mov rcx, offset pause_msg
+    call printf
+    
+    ; Pause CPU execution loop wait sequence for a terminal key press entry
+    call _getch
+    
+    add rsp, 40
+    ret
+PauseScreen ENDP
+
+END
